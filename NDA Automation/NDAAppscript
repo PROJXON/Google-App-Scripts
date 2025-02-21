@@ -1,0 +1,61 @@
+function onOpen() {
+  var ui = SpreadsheetApp.getUi();
+  ui.createMenu('Custom Scripts')
+    .addItem('Generate Documents', 'generateDocumentAndSendEmail')
+    .addToUi();
+}
+
+function generateDocumentAndSendEmail() {
+  var sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
+  var data = sheet.getDataRange().getValues(); // Get all data
+  
+  var templateId = "1Lvx02SGzpcM63VXBocJ1B894fwfGfx8APSJyKdZ-m-g"; // Replace with your Google Docs template ID
+  var folderId = "1YsFj5DF6LXsQ71x9YcN2QiSOh7Nke73u"; // Replace with your Google Drive folder ID
+
+  for (var i = 1; i < data.length; i++) { // Start from row 2, skipping headers
+    var row = data[i];
+
+    var date = row[0];
+    var employeeName = row[1];
+    var employeeEmail = row[2];
+    var status = row[4];
+
+    if (status === "Completed" || !employeeEmail) {
+      continue; // Skip if already processed or email is missing
+    }
+
+    // Create a new document from the template
+    var template = DriveApp.getFileById(templateId);
+    var newDoc = template.makeCopy(employeeName + " Document", DriveApp.getFolderById(folderId));
+    var doc = DocumentApp.openById(newDoc.getId());
+    var body = doc.getBody();
+
+    // Replace placeholders with row data
+    body.replaceText("{{Date}}", date);
+    body.replaceText("{{Employee Name}}", employeeName);
+    body.replaceText("{{Employee Email}}", employeeEmail);
+
+    doc.saveAndClose();
+
+    // Convert the document to a PDF
+    var pdfBlob = newDoc.getAs('application/pdf');
+    var pdfFile = DriveApp.getFolderById(folderId).createFile(pdfBlob).setName(employeeName + ".pdf");
+    var pdfUrl = pdfFile.getUrl(); // Get PDF URL
+
+    // Update the spreadsheet: Add PDF link in Column D and set status in Column E
+    sheet.getRange(i + 1, 4).setFormula('=HYPERLINK("' + pdfUrl + '", "View PDF")'); // Insert clickable link
+    sheet.getRange(i + 1, 5).setValue("Completed");
+
+    // Send an email with the PDF attachment
+    MailApp.sendEmail({
+      to: employeeEmail,
+      subject: "Your Document is Ready",
+      body: "Hello " + employeeName + ",\n\nAttached is your document. You can also view it here: " + pdfUrl + "\n\nBest regards,\nYour Company",
+      attachments: [pdfBlob]
+    });
+
+    // Delete the temporary document (optional)
+    DriveApp.getFileById(newDoc.getId()).setTrashed(true);
+  }
+}
+
