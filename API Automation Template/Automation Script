@@ -1,0 +1,67 @@
+function onOpen() {
+  var ui = SpreadsheetApp.getUi();
+  ui.createMenu('Custom Scripts')
+    .addItem('Run Email Script', 'processGoogleDocsAndEmails')
+    .addToUi();
+}
+
+function processGoogleDocsAndEmails() {
+  var templateId = "11X1REsZusyMHbodA7qaTWoi6K8sh2E5E_OA2zKjooLs";
+  var folderId = "1Y-xyBzoN8xeoannaw1bddb2tJ5IsQvaw";
+  var emailDocId = "1tR8j2IWLK2yQxFluR21nrArlfVCjmCxZ7djrKwriLIA";
+  var sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
+  var data = sheet.getDataRange().getValues();
+  
+  var emailDoc = DocumentApp.openById(emailDocId);
+  var message = emailDoc.getBody().getText();
+  
+  for (var i = 1; i < data.length; i++) {
+    var row = data[i];
+    var publishDate = new Date(row[0]); // Column A
+    var formattedDate = Utilities.formatDate(publishDate, Session.getScriptTimeZone(), "dd MMMM, yyyy");
+    var templateTest = row[1]; // Column B
+    var subject = row[2]; // Column C (Email Header)
+    var email = row[3]; // Column D
+    var docStatus = row[4]; // Column E
+    var emailStatus = row[5]; // Column F
+    
+    if (docStatus === "Drafted!" || emailStatus === "Sent!") continue;
+    
+    try {
+      var fileName = templateTest + "_PROJXON_API_Template_" + formattedDate;
+      var newDoc = DriveApp.getFileById(templateId).makeCopy(fileName, DriveApp.getFolderById(folderId));
+      var doc = DocumentApp.openById(newDoc.getId());
+      var body = doc.getBody();
+      
+      for (var j = 0; j < data[0].length; j++) {
+        var placeholder = "{{" + data[0][j] + "}}";
+        body.replaceText(placeholder, row[j]);
+      }
+      
+      doc.saveAndClose();
+      
+      var pdf = newDoc.getAs("application/pdf");
+      var pdfFile = DriveApp.getFolderById(folderId).createFile(pdf).setName(fileName + ".pdf");
+      
+      var emailSent = false;
+      try {
+        MailApp.sendEmail({
+          to: email,
+          subject: subject,
+          body: message,
+          attachments: [pdfFile]
+        });
+        emailSent = true;
+      } catch (emailError) {
+        Logger.log("Email failed to send: " + emailError.toString());
+      }
+      
+      sheet.getRange(i + 1, 5).setValue("Drafted!");
+      sheet.getRange(i + 1, 6).setValue(emailSent ? "Sent!" : "Failed!");
+    } catch (error) {
+      Logger.log("Processing failed: " + error.toString());
+      sheet.getRange(i + 1, 5).setValue("Failed!");
+      sheet.getRange(i + 1, 6).setValue("Failed!");
+    }
+  }
+}
