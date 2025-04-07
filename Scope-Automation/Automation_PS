@@ -1,0 +1,83 @@
+function createNewProjectScopeSheet() {
+  var responseSheet = SpreadsheetApp.openById("16Elfo46BOH0AEEQ7NojUiLlhqKZPjFOZbhu6UJ00Y8s")
+                                    .getSheetByName("Form Responses 1");
+  var templateFile = DriveApp.getFileById("1x9HA4TcK5lt9QlZmSuZCybRRjNASI1ma-NpbvkdP8p0");
+  var destinationFolder = DriveApp.getFolderById("1ZCV3hEezF1oA2cppBNit4mzqxxxr2lTn");
+
+  if (!responseSheet) {
+    Logger.log("❌ Error: Could not find the response sheet. Check the sheet name.");
+    return;
+  }
+
+  var lastRow = responseSheet.getLastRow();
+  if (lastRow < 2) {
+    Logger.log("⚠️ No new responses found.");
+    return;
+  }
+
+  var lastResponse = responseSheet.getRange(lastRow, 1, 1, responseSheet.getLastColumn()).getValues()[0];
+  if (!lastResponse || lastResponse.length === 0) {
+    Logger.log("⚠️ No data found in the last form response.");
+    return;
+  }
+
+  var projectTitle = lastResponse[1] || "Untitled Project";
+  var timestamp = new Date().toISOString().replace(/T/, ' ').replace(/\..+/, '');
+  var newFileName = "Project Scope - " + projectTitle + " (" + timestamp + ")";
+
+  var newFile = templateFile.makeCopy(newFileName, destinationFolder);
+  var newSheet = SpreadsheetApp.openById(newFile.getId()).getSheets()[0];
+
+  // 🔹 Main Field Mapping
+  newSheet.getRange("B3").setValue(lastResponse[9]);   // Project Folder Link
+  newSheet.getRange("C3").setValue(lastResponse[8]);   // Asana Board Link
+  newSheet.getRange("E3").setValue(lastResponse[6]);   // Start Date
+  newSheet.getRange("F3").setValue(lastResponse[7]);   // End Date
+  newSheet.getRange("G3").setValue(lastResponse[4]);   // Project Owner (PO)
+  newSheet.getRange("H3").setValue(lastResponse[5]);   // Department
+
+  newSheet.getRange("C4").setValue(lastResponse[1]);   // Project Title
+  newSheet.getRange("C6").setValue(lastResponse[2]);   // Project Description
+  newSheet.getRange("C9").setValue(lastResponse[3]);   // Success Criteria
+
+  // 🔹 Roles & Responsibilities (Row 13)
+  newSheet.getRange("C13").setValue(lastResponse[13]); // Name
+  newSheet.getRange("D13").setValue(lastResponse[5]);  // Department
+  newSheet.getRange("E13").setValue(lastResponse[14]); // Role
+  newSheet.getRange("F13").setValue(lastResponse[15]); // Responsibilities
+  newSheet.getRange("G13").setValue(lastResponse[16]); // Time Zone
+  newSheet.getRange("H13").setValue(lastResponse[17]); // PJX Email
+
+  // 🔹 Milestones
+  newSheet.getRange("C25").setValue(lastResponse[27]); // Milestone 1
+  newSheet.getRange("E25").setValue(lastResponse[28]); // Milestone 2
+  newSheet.getRange("G25").setValue(lastResponse[29]); // Milestone 3
+
+  // 🔹 Other Sections
+  newSheet.getRange("C27").setValue(lastResponse[18]); // Success Metrics
+  newSheet.getRange("C30").setValue(lastResponse[21]); // Resources
+  newSheet.getRange("C32").setValue(lastResponse[22]); // Initiative Alignment
+  newSheet.getRange("C34").setValue(lastResponse[25]); // Owner
+  newSheet.getRange("C36").setValue(lastResponse[30]); // Reporting & Communication Plan
+  newSheet.getRange("C39").setValue(lastResponse[31]); // Reporting Tools
+
+  // 🔹 Ground Rules 1–4 (J3–J6)
+  newSheet.getRange("J3").setValue(lastResponse[10]);  // Ground Rule 1
+  newSheet.getRange("J4").setValue(lastResponse[35]);  // Ground Rule 2
+  newSheet.getRange("J5").setValue(lastResponse[36]);  // Ground Rule 3
+  newSheet.getRange("J6").setValue(lastResponse[37]);  // Ground Rule 4
+
+  // 🔹 Meeting Timings 1–4 (J10–J13)
+  newSheet.getRange("J10").setValue(lastResponse[11]); // Meeting Timing 1
+  newSheet.getRange("J11").setValue(lastResponse[38]); // Meeting Timing 2
+  newSheet.getRange("J12").setValue(lastResponse[39]); // Meeting Timing 3
+  newSheet.getRange("J13").setValue(lastResponse[40]); // Meeting Timing 4
+
+  // 🔹 Friday Weekly Retrospective 1–4 (J15–J18)
+  newSheet.getRange("J15").setValue(lastResponse[34]); // Retrospective 1
+  newSheet.getRange("J16").setValue(lastResponse[41]); // Retrospective 2
+  newSheet.getRange("J17").setValue(lastResponse[42]); // Retrospective 3
+  newSheet.getRange("J18").setValue(lastResponse[43]); // Retrospective 4
+
+  Logger.log("✅ New Project Scope sheet created: " + newFileName);
+}
